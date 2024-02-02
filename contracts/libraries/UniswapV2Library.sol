@@ -55,7 +55,7 @@ library UniswapV2Library {
     function getAmountIn(uint amountOut, uint reserveIn, uint reserveOut) internal pure returns (uint amountIn) {
         require(amountOut > 0, 'UniswapV2Library: INSUFFICIENT_OUTPUT_AMOUNT');
         require(reserveIn > 0 && reserveOut > 0, 'UniswapV2Library: INSUFFICIENT_LIQUIDITY');
-        // 根据x*y=k来计算，(X0+0.9997Xin)*(Y0-Yout) = X0*Y0得出，
+        // 根据x*y=k来计算，(X0+0.997Xin)*(Y0-Yout) = X0*Y0得出，
         // Xin = (Yout*X0)/0.997*(Y0-Yout)
         // 在这里，就把进来的token收取千分之三的fee
         uint numerator = reserveIn.mul(amountOut).mul(1000);
