@@ -298,6 +298,12 @@ contract UniswapV2Router02 is IUniswapV2Router02 {
         IWETH(WETH).withdraw(amounts[amounts.length - 1]);
         TransferHelper.safeTransferETH(to, amounts[amounts.length - 1]);
     }
+
+    // 这个方法是确定想要多少个token，然后根据想要的token数量求出需要的eth
+    // 第一个参数，amountOut，就是想要的确定的token数量
+    // 第二个参数，swap的列表，根据这个列表一步步swap到最后想要的token，这一步的逻辑应该是由前端完成的
+    // 第三个参数，to，就是得到的token要发送到哪里去，也就是token接收人的地址
+    // 第四个参数，是deadline，通过ensure这个modifier来执行，如果是在这个时间以后执行，那么直接revert，这个是为了防止tx一直不被打包上链
     function swapETHForExactTokens(uint amountOut, address[] calldata path, address to, uint deadline)
         external
         virtual
@@ -306,7 +312,9 @@ contract UniswapV2Router02 is IUniswapV2Router02 {
         ensure(deadline)
         returns (uint[] memory amounts)
     {
+        // 列表第一个必须是weth的地址，因为要从weth开始换
         require(path[0] == WETH, 'UniswapV2Router: INVALID_PATH');
+        // 根据最终想要得到的token数量，计算出在swap一开始，需要多少的weth
         amounts = UniswapV2Library.getAmountsIn(factory, amountOut, path);
         require(amounts[0] <= msg.value, 'UniswapV2Router: EXCESSIVE_INPUT_AMOUNT');
         IWETH(WETH).deposit{value: amounts[0]}();
