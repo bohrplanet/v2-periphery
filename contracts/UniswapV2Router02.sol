@@ -209,13 +209,23 @@ contract UniswapV2Router02 is IUniswapV2Router02 {
 
     // **** SWAP ****
     // requires the initial amount to have already been sent to the first pair
+    // 第一个参数是每次swap的时候，需要进入的token的数量
+    // 第二个参数是每次swap的代币的地址，用于计算配对的池子合约的地址
+    // 第三个参数是最后swap出来的token的接收人
     function _swap(uint[] memory amounts, address[] memory path, address _to) internal virtual {
         for (uint i; i < path.length - 1; i++) {
+            // 先计算出池子合约的地址
             (address input, address output) = (path[i], path[i + 1]);
             (address token0,) = UniswapV2Library.sortTokens(input, output);
+            // 这个amountOut就是在当前这个i这一轮次，需要swap out，也就是需要换出来的token的数量
             uint amountOut = amounts[i + 1];
+            // 这里通过比较token的地址来判断到底是池子中哪个token是需要被换出来的
             (uint amount0Out, uint amount1Out) = input == token0 ? (uint(0), amountOut) : (amountOut, uint(0));
+            // 计算出当这个token被swap出来之后，如果接下来还需要继续swap的，是需要把token打到下一个池子的
+            // 如果不需要继续swap，那么就打到接收人那里，也就是_to地址
             address to = i < path.length - 2 ? UniswapV2Library.pairFor(factory, output, path[i + 2]) : _to;
+            // 开始真之swap
+            // 这里uniswap的外围合约部分的工作就完成了，接下来就是uniswap core的工作
             IUniswapV2Pair(UniswapV2Library.pairFor(factory, input, output)).swap(
                 amount0Out, amount1Out, to, new bytes(0)
             );
@@ -317,8 +327,13 @@ contract UniswapV2Router02 is IUniswapV2Router02 {
         // 根据最终想要得到的token数量，计算出在swap一开始，需要多少的weth
         amounts = UniswapV2Library.getAmountsIn(factory, amountOut, path);
         require(amounts[0] <= msg.value, 'UniswapV2Router: EXCESSIVE_INPUT_AMOUNT');
+        // 调用weth合约，将需要的eth打过去
+        // weth的deposit方法会在他的合约上记录我们这个合约的weth
         IWETH(WETH).deposit{value: amounts[0]}();
+        // 这里实际上是用一行代码做了两件事情，assert里面，是把当前合约的weth转到了前两个合约对应的uniswap的池子合约中
+        // 然后就是assert，需要这个返回true，才能继续下面的代码
         assert(IWETH(WETH).transfer(UniswapV2Library.pairFor(factory, path[0], path[1]), amounts[0]));
+        // 完成准备工作，正式开始swap
         _swap(amounts, path, to);
         // refund dust eth, if any
         if (msg.value > amounts[0]) TransferHelper.safeTransferETH(msg.sender, msg.value - amounts[0]);
